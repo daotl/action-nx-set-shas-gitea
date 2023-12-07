@@ -15409,8 +15409,8 @@ function findSuccessfulCommit(owner, repo, sha) {
                     if (data.state === "success") {
                         return item.sha;
                     }
-                    page++;
                 }
+                page++;
             }
         }
         catch (e) {

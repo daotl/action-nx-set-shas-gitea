@@ -206,9 +206,8 @@ async function findSuccessfulCommit(
         if (data.state === "success") {
           return item.sha;
         }
-
-        page++;
       }
+      page++;
     }
   } catch (e) {
     console.log("Error:", e);
