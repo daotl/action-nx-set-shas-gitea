@@ -59,6 +59,10 @@ let BASE_SHA: string;
     }
   } else {
     const pushPayload = github.context.payload as PushEvent;
+    console.log(
+      JSON.stringify(pushPayload),
+      "------------------------------->",
+    );
 
     try {
       BASE_SHA = await findSuccessfulCommit(
