@@ -190,7 +190,7 @@ async function findSuccessfulCommit(
           limit: 10,
         },
       );
-      console.log("commitList" + commitList);
+      console.log("commitList", JSON.stringify(commitList));
 
       if (!commitList.length) {
         return "";

@@ -15400,7 +15400,7 @@ function findSuccessfulCommit(owner, repo, sha) {
                     page,
                     limit: 10,
                 });
-                console.log("commitList" + commitList);
+                console.log("commitList", JSON.stringify(commitList));
                 if (!commitList.length) {
                     return "";
                 }
