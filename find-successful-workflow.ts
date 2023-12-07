@@ -1,25 +1,26 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
-import { Octokit } from "@octokit/action";
+import { giteaApi } from "gitea-js";
 import { spawnSync } from "child_process";
 import { existsSync } from "fs";
-import { HttpsProxyAgent } from "https-proxy-agent";
-import { getProxyForUrl } from "proxy-from-env";
+import { PushEvent } from "@octokit/webhooks-definitions/schema";
 
 const {
-  runId,
   repo: { repo, owner },
   eventName,
 } = github.context;
 process.env.GITHUB_TOKEN = process.argv[2];
 const mainBranchName = process.argv[3];
 const errorOnNoSuccessfulWorkflow = process.argv[4];
-const lastSuccessfulEvent = process.argv[5];
+const _lastSuccessfulEvent = process.argv[5];
 const workingDirectory = process.argv[6];
-const workflowId = process.argv[7];
+const _workflowId = process.argv[7];
+const baseUrl = process.argv[8];
 const defaultWorkingDirectory = ".";
 
-const ProxifiedClient = Octokit.plugin(proxyPlugin);
+const api = giteaApi(baseUrl, {
+  token: process.env.GITHUB_TOKEN,
+});
 
 let BASE_SHA: string;
 (async () => {
@@ -29,7 +30,7 @@ let BASE_SHA: string;
     } else {
       process.stdout.write("\n");
       process.stdout.write(
-        `WARNING: Working directory '${workingDirectory}' doesn't exist.\n`
+        `WARNING: Working directory '${workingDirectory}' doesn't exist.\n`,
       );
     }
   }
@@ -49,7 +50,7 @@ let BASE_SHA: string;
       const baseResult = spawnSync(
         "git",
         ["merge-base", `origin/${mainBranchName}`, mergeBaseRef],
-        { encoding: "utf-8" }
+        { encoding: "utf-8" },
       );
       BASE_SHA = baseResult.stdout;
     } catch (e) {
@@ -57,14 +58,13 @@ let BASE_SHA: string;
       return;
     }
   } else {
+    const pushPayload = github.context.payload as PushEvent;
+
     try {
       BASE_SHA = await findSuccessfulCommit(
-        workflowId,
-        runId,
         owner,
         repo,
-        mainBranchName,
-        lastSuccessfulEvent
+        pushPayload.commits.at(-1).id,
       );
     } catch (e) {
       core.setFailed(e.message);
@@ -76,27 +76,27 @@ let BASE_SHA: string;
         reportFailure(mainBranchName);
         return;
       } else {
-        process.stdout.write(   "\n");
+        process.stdout.write("\n");
         process.stdout.write(
-          `WARNING: Unable to find a successful workflow run on 'origin/${mainBranchName}', or the latest successful workflow was connected to a commit which no longer exists on that branch (e.g. if that branch was rebased)\n`
+          `WARNING: Unable to find a successful workflow run on 'origin/${mainBranchName}', or the latest successful workflow was connected to a commit which no longer exists on that branch (e.g. if that branch was rebased)\n`,
         );
         process.stdout.write(
-          `We are therefore defaulting to use HEAD~1 on 'origin/${mainBranchName}'\n`
+          `We are therefore defaulting to use HEAD~1 on 'origin/${mainBranchName}'\n`,
         );
         process.stdout.write("\n");
         process.stdout.write(
-          `NOTE: You can instead make this a hard error by setting 'error-on-no-successful-workflow' on the action in your workflow.\n`
+          `NOTE: You can instead make this a hard error by setting 'error-on-no-successful-workflow' on the action in your workflow.\n`,
         );
         process.stdout.write("\n");
 
         const commitCountOutput = spawnSync(
           "git",
           ["rev-list", "--count", `origin/${mainBranchName}`],
-          { encoding: "utf-8" }
+          { encoding: "utf-8" },
         ).stdout;
         const commitCount = parseInt(
           stripNewLineEndings(commitCountOutput),
-          10
+          10,
         );
 
         const LAST_COMMIT_CMD = `origin/${mainBranchName}${
@@ -111,7 +111,7 @@ let BASE_SHA: string;
     } else {
       process.stdout.write("\n");
       process.stdout.write(
-        `Found the last successful workflow run on 'origin/${mainBranchName}'\n`
+        `Found the last successful workflow run on 'origin/${mainBranchName}'\n`,
       );
       process.stdout.write(`Commit: ${BASE_SHA}\n`);
     }
@@ -130,62 +130,6 @@ function reportFailure(branchName: string): void {
     - If no, then you might have changed your git history and those commits no longer exist.`);
 }
 
-function proxyPlugin(octokit: Octokit): void {
-  octokit.hook.before("request", (options) => {
-    const proxy: URL = getProxyForUrl(options.baseUrl);
-    if (proxy) {
-      options.request.agent = new HttpsProxyAgent(proxy);
-    }
-  });
-}
-
-/**
- * Find last successful workflow run on the repo
- */
-async function findSuccessfulCommit(
-  workflow_id: string | undefined,
-  run_id: number,
-  owner: string,
-  repo: string,
-  branch: string,
-  lastSuccessfulEvent: string
-): Promise<string | undefined> {
-  const octokit = new ProxifiedClient();
-  if (!workflow_id) {
-    workflow_id = await octokit
-      .request(`GET /repos/${owner}/${repo}/actions/runs/${run_id}`, {
-        owner,
-        repo,
-        branch,
-        run_id,
-      })
-      .then(({ data: { workflow_id } }) => workflow_id);
-    process.stdout.write("\n");
-    process.stdout.write(
-      `Workflow Id not provided. Using workflow '${workflow_id}'\n`
-    );
-  }
-  // fetch all workflow runs on a given repo/branch/workflow with push and success
-  const shas = await octokit
-    .request(
-      `GET /repos/${owner}/${repo}/actions/workflows/${workflow_id}/runs`,
-      {
-        owner,
-        repo,
-        // on non-push workflow runs we do not have branch property
-        branch: lastSuccessfulEvent !== "push" ? undefined : branch,
-        workflow_id,
-        event: lastSuccessfulEvent,
-        status: "success",
-      }
-    )
-    .then(({ data: { workflow_runs } }) =>
-      workflow_runs.map((run: { head_sha: any }) => run.head_sha)
-    );
-
-  return await findExistingCommit(octokit, branch, shas);
-}
-
 async function findMergeBaseRef(): Promise<string> {
   if (eventName == "merge_group") {
     const mergeQueueBranch = await findMergeQueueBranch();
@@ -198,7 +142,7 @@ async function findMergeBaseRef(): Promise<string> {
 function findMergeQueuePr(): string {
   const { head_ref, base_sha } = github.context.payload.merge_group;
   const result = new RegExp(
-    `^refs/heads/gh-readonly-queue/${mainBranchName}/pr-(\\d+)-${base_sha}$`
+    `^refs/heads/gh-readonly-queue/${mainBranchName}/pr-(\\d+)-${base_sha}$`,
   ).exec(head_ref);
   return result ? result.at(1) : undefined;
 }
@@ -210,63 +154,9 @@ async function findMergeQueueBranch(): Promise<string> {
   }
   process.stdout.write("\n");
   process.stdout.write(`Found PR #${pull_number} from merge queue branch\n`);
-  const octokit = new ProxifiedClient();
-  const result = await octokit.request(
-    `GET /repos/${owner}/${repo}/pulls/${pull_number}`,
-    { owner, repo, pull_number: +pull_number }
-  );
+
+  const result = await api.repos.repoGetPullRequest(owner, repo, +pull_number);
   return result.data.head.ref;
-}
-
-/**
- * Get first existing commit
- */
-async function findExistingCommit(
-  octokit: Octokit,
-  branchName: string,
-  shas: string[]
-): Promise<string | undefined> {
-  for (const commitSha of shas) {
-    if (await commitExists(octokit, branchName, commitSha)) {
-      return commitSha;
-    }
-  }
-  return undefined;
-}
-
-/**
- * Check if given commit is valid
- */
-async function commitExists(
-  octokit: Octokit,
-  branchName: string,
-  commitSha: string
-): Promise<boolean> {
-  try {
-    spawnSync("git", ["cat-file", "-e", commitSha], {
-      stdio: ["pipe", "pipe", null],
-    });
-
-    // Check the commit exists in general
-    await octokit.request("GET /repos/{owner}/{repo}/commits/{commit_sha}", {
-      owner,
-      repo,
-      commit_sha: commitSha,
-    });
-
-    // Check the commit exists on the expected main branch (it will not in the case of a rebased main branch)
-    const commits = await octokit.request("GET /repos/{owner}/{repo}/commits", {
-      owner,
-      repo,
-      sha: branchName,
-    });
-
-    return commits.data.some(
-      (commit: { sha: string }) => commit.sha === commitSha
-    );
-  } catch {
-    return false;
-  }
 }
 
 /**
@@ -274,4 +164,51 @@ async function commitExists(
  */
 function stripNewLineEndings(string: string): string {
   return string.replace("\n", "");
+}
+
+/**
+ * Find last successful workflow run on the repo
+ */
+async function findSuccessfulCommit(
+  owner: string,
+  repo: string,
+  sha: string,
+): Promise<string> {
+  let page = 1;
+  try {
+    while (true) {
+      const { data: commitList } = await api.repos.repoGetAllCommits(
+        owner,
+        repo,
+        {
+          sha,
+          stat: false,
+          verification: false,
+          files: false,
+          page,
+          limit: 10,
+        },
+      );
+
+      if (!commitList.length) {
+        return "";
+      }
+
+      for (const item of commitList) {
+        const { data } = await api.repos.repoGetCombinedStatusByRef(
+          owner,
+          repo,
+          item.sha,
+        );
+
+        if (data.state === "success") {
+          return item.sha;
+        }
+
+        page++;
+      }
+    }
+  } catch {
+    return "";
+  }
 }
