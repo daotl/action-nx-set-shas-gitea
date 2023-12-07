@@ -15302,7 +15302,6 @@ let BASE_SHA;
     }
     else {
         const pushPayload = github.context.payload;
-        console.log(JSON.stringify(pushPayload), "------------------------------->");
         try {
             BASE_SHA = yield findSuccessfulCommit(owner, repo, pushPayload.commits.at(-1).id);
         }
@@ -15406,6 +15405,8 @@ function findSuccessfulCommit(owner, repo, sha) {
                 for (const item of commitList) {
                     const { data } = yield api.repos.repoGetCombinedStatusByRef(owner, repo, item.sha);
                     if (data.state === "success") {
+                        console.log("data" + data.sha);
+                        console.log("item" + item.sha);
                         return item.sha;
                     }
                     page++;
