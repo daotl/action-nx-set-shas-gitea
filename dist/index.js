@@ -15399,14 +15399,13 @@ function findSuccessfulCommit(owner, repo, sha) {
                     page,
                     limit: 10,
                 });
+                console.log("commitList" + commitList);
                 if (!commitList.length) {
                     return "";
                 }
                 for (const item of commitList) {
                     const { data } = yield api.repos.repoGetCombinedStatusByRef(owner, repo, item.sha);
                     if (data.state === "success") {
-                        console.log("data" + data.sha);
-                        console.log("item" + item.sha);
                         return item.sha;
                     }
                     page++;

@@ -189,6 +189,7 @@ async function findSuccessfulCommit(
           limit: 10,
         },
       );
+      console.log("commitList" + commitList);
 
       if (!commitList.length) {
         return "";
@@ -202,9 +203,6 @@ async function findSuccessfulCommit(
         );
 
         if (data.state === "success") {
-          console.log("data" + data.sha);
-          console.log("item" + item.sha);
-
           return item.sha;
         }
 
