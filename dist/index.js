@@ -15269,6 +15269,7 @@ const workingDirectory = process.argv[6];
 const _workflowId = process.argv[7];
 const baseUrl = process.argv[8];
 const defaultWorkingDirectory = ".";
+console.log(baseUrl, "==========");
 const api = (0, gitea_js_1.giteaApi)(baseUrl, {
     token: process.env.GITHUB_TOKEN,
 });
