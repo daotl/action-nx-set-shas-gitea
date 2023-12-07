@@ -15412,7 +15412,8 @@ function findSuccessfulCommit(owner, repo, sha) {
                 }
             }
         }
-        catch (_a) {
+        catch (e) {
+            console.log("Error:", e);
             return "";
         }
     });

@@ -209,7 +209,8 @@ async function findSuccessfulCommit(
         page++;
       }
     }
-  } catch {
+  } catch (e) {
+    console.log("Error:", e);
     return "";
   }
 }
