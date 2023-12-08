@@ -111,7 +111,7 @@ let BASE_SHA: string;
     } else {
       process.stdout.write("\n");
       process.stdout.write(
-        `Found the last successful workflow run on 'origin/${mainBranchName}'\n`,
+        `Found the last successful workflow run on '${pushPayload.ref}'\n`,
       );
       process.stdout.write(`Commit: ${BASE_SHA}\n`);
     }
