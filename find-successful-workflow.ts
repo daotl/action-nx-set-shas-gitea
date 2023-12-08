@@ -59,6 +59,8 @@ let BASE_SHA: string;
     }
   } else {
     const pushPayload = github.context.payload as PushEvent;
+    console.log("pushPayload:", pushPayload);
+
     console.log("pushPayload.commits: ", JSON.stringify(pushPayload.commits));
 
     try {
