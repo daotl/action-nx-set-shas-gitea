@@ -15274,6 +15274,7 @@ const api = (0, gitea_js_1.giteaApi)(baseUrl, {
 });
 let BASE_SHA;
 (() => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b;
     if (workingDirectory !== defaultWorkingDirectory) {
         if ((0, fs_1.existsSync)(workingDirectory)) {
             process.chdir(workingDirectory);
@@ -15302,10 +15303,8 @@ let BASE_SHA;
     }
     else {
         const pushPayload = github.context.payload;
-        console.log("pushPayload:", pushPayload);
-        console.log("pushPayload.commits: ", JSON.stringify(pushPayload.commits));
         try {
-            BASE_SHA = yield findSuccessfulCommit(owner, repo, pushPayload.commits.at(-1).id);
+            BASE_SHA = yield findSuccessfulCommit(owner, repo, (_b = (_a = pushPayload.commits.at(-1)) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : pushPayload.ref);
         }
         catch (e) {
             core.setFailed(e.message);
