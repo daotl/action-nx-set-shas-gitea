@@ -15303,7 +15303,6 @@ let BASE_SHA;
     }
     else {
         const pushPayload = github.context.payload;
-        console.log("pushPayload:", pushPayload);
         try {
             BASE_SHA = yield findSuccessfulCommit(owner, repo, (_b = (_a = pushPayload.commits.at(-1)) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : pushPayload.ref);
         }
